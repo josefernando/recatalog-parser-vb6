@@ -14,7 +14,8 @@ public class InventoryTest {
 	File file = null;
 	String filePath = null;
 	PropertyList properties;
-
+	ParseTree tree;
+	
 	@BeforeEach
 	public void init() {
 		 filePath = "C:\\workspace\\arcatalog\\vb6\\antlr4\\input\\R1PAB0\\R1CAB016.CLS";
@@ -22,7 +23,8 @@ public class InventoryTest {
 		 file = new File(filePath);
 		 properties = new PropertyList();
 		 properties.addProperty("FILE_PATH", filePath);
-		 new VisualBasic6ParserCompUnit(properties);		
+		 new VisualBasic6ParserCompUnit(properties);	
+	     tree = (ParseTree)properties.getProperty("ASTREE");
 	}
 	
 	@Test
@@ -31,7 +33,6 @@ public class InventoryTest {
 	     
 	     VB6InventoryCompUnit vb6InventoryCompUnit = new VB6InventoryCompUnit();
 	     ParseTreeWalker walker = new ParseTreeWalker();
-	     ParseTree tree = (ParseTree)properties.getProperty("ASTREE");
 	     walker.walk(vb6InventoryCompUnit, tree);        // walk parse tree 
 
 	  	 boolean unitTest = vb6InventoryCompUnit.getInventory().getInventory().equals(parseRegex.getInventory().getInventory()); 
