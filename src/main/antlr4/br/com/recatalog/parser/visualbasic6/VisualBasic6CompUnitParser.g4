@@ -1,0 +1,1415 @@
+parser grammar VisualBasic6CompUnitParser;
+
+/*
+* Visual Basic 6.0 Grammar for ANTLR4
+*
+* This is an approximate grammar for Visual Basic 6.0, derived 
+* from the Visual Basic 6.0 language reference 
+* http://msdn.microsoft.com/en-us/library/aa338033%28v=vs.60%29.aspx 
+* and tested against MSDN VB6 statement examples as well as several Visual 
+* Basic 6.0 code repositories.
+*
+* Characteristics:
+*
+* 1. This grammar is line-based and takes into account whitespace, so that
+*    member calls (e.g. "A.B") are distinguished from contextual object calls 
+*    in WITH statements (e.g. "A .B").
+*
+* 2. Keywords can be used as identifiers depending on the context, enabling
+*    e.g. "A.Type", but not "Type.B".
+*
+*
+* Known limitations:
+*
+* 1. Preprocessor statements (#if, #else, ...) must not interfere with regular
+*    statements.
+*
+* 2. Comments are skipped.
+*
+*
+* Change log:
+*
+* v1.3
+*	- call statement precedence
+*
+* v1.2
+*	- refined call statements
+*
+* v1.1 
+*	- precedence of operators and of ELSE in select statements
+*	- optimized member calls
+*
+* v1.0 Initial revision
+*/
+
+//======================MAP CONTROL VB6 to .Net =============================
+// MAP Control            	To .Net
+// Threed.SSCommand							System.Windows.Forms.Button
+// Threed.Constants_ButtonStyle				System.Windows.Forms.FlatStyle
+// Threed.SSFrame							System.Windows.Forms.GroupBox
+// Threed.SSPanel							System.Windows.Forms.Panel
+// Threed.SSCheck							System.Windows.Forms.CheckBox
+// Threed.SSOption							System.Windows.Forms.RadioButton
+// Threed.Constants_Alignment				System.Drawing.ContentAlignment
+// Threed.Constants_PictureBackgroundStyle	System.Windows.Forms.ImageLayout
+// Threed.Constants_Bevel					System.Windows.Forms.BorderStyle
+// Threed.Constants_MousePointer			System.Windows.Forms.Cursor
+// Threed.Constants_CheckBoxValue			System.Windows.Forms.CheckState
+//=============================================================================
+
+/*
+============================== VB5 Activex Controls =========================
+AniBtn32.ocx
+Gauge32.ocx
+Graph32.ocx
+Gsw32.EXE
+Gswdll32.DLL
+Grid32.ocx
+KeySta32.ocx
+MSOutl32.ocx
+Spin32.ocx
+Threed32.ocx
+MSChart.ocx
+==============================================================================
+*/
+/*
+===== Heran�a da linguagem BASIC - Vari�veis terminadas com os seguintes caracteres
+===== n�o tem qualquer significado em VB ou VB.Net
+      %                 Integer
+      &                 Long
+      !                 Single
+      #                 Double
+      $                 String
+      @                 Currency
+=============================================================================
+*/    
+
+/* REDIM - vari�vel pode ser criada dinamicamente mesmo de "OPTION Explicit" for declarada
+https://docs.microsoft.com/pt-br/office/vba/Language/Concepts/Getting-Started/declaring-arrays
+...
+Voc� pode usar a instru��o ReDim para declarar 
+uma matriz implicitamente dentro de um procedimento. 
+Tenha cuidado para n�o digitar incorretamente o nome da matriz ao usar a instru��o ReDim. 
+Mesmo se a instru��o Option Explicit estiver inclu�da no m�dulo, 
+uma segunda matriz ser� criada.
+*/ 
+
+/* ============= VBP File - References Vs Objects
+Objects are for ActiveX controls which are usually compiled to .ocx files.
+References are for type libraries usually compiled to .dll files or .tlb files.
+Notice that .ocx files contain typelib too so this is very inconsistent and pretty much a legacy division.
+
+Paths and filenames are optional, typelib IDs are canonical way to resolve dependency.
+Only if these are not found in registry there is a auto-resolve strategy searching
+for files in current folder for .ocxes only. 
+This most annoying behavior happens at run-time too when the applications starts 
+to auto-registering .ocxes in current folder if typelibs are not found and often 
+fails on modern OSes for lack of permissions to write in HKLM.
+
+There are Object lines in .frm/.ctl source files too. These get appended to 
+current project if adding existing form/usercontrol.
+
+If an .ocx typelib is added as Reference line the IDE usually fails to load the project 
+and a manual edit is needed.
+*/ 
+
+/*
+ScaleMode 	Meaning 
+0 	User-defined. 
+1 	Twips - 1440 per inch. 
+2 	Points - 72 per inch. 
+3 	Pixels - number per inch depends on monitor. 
+4 	Characters - character = 1/6 inch high and 1/12 inch wide. 
+5 	Inches. 
+6 	Millimeters. 
+7 	Centimeters.
+*/
+
+/*
+Byte-------------------------------1 byte   
+Boolean----------------------------2 bytes  
+Integer----------------------------2 bytes  
+Long
+(long integer)---------------------4 bytes  
+Single-----------------------------4 bytes  
+(single-precision floating-point)   
+Double-----------------------------8 bytes
+(double-precision floating-point)       
+Currency
+(scaled integer)-------------------8 bytes
+Decimal---------------------------14 bytes  
+Date------------------------------ 8 bytes  
+Object-----------------------------4 bytes  
+String 
+(variable-length)-----------------10 bytes 
+Variant
+(with numbers)--------------------16 bytes  
+Variant
+(with characters)-----------------22 bytes + string length
+User-defined
+*/
+
+@parser::header {
+//  package br.com.arcatalog.parser.vb6; 
+  import br.com.recatalog.util.Watch;
+  import java.util.HashMap;
+  import java.util.ArrayDeque;
+  import java.util.ArrayList;
+  import java.util.Arrays;
+  import java.util.Deque;
+  import java.util.List;
+  import java.util.Iterator;
+}
+
+@parser::members {
+//   boolean inExpr = false;
+   int inExpr = 0;
+
+   Watch elapsedTime = new Watch();
+   double timeElapsedSinceLastStatement = 0;
+   double totalElapsedTime = 0;
+   boolean inDef = false;
+   boolean mandatoryModifier = false;
+   
+   List<String> kwtv = new ArrayList<String>();
+ 		
+   public void addKeyWordToVerify(String tokenImage) {
+   		kwtv.add(tokenImage.toUpperCase());
+	}
+	
+	public Double getTotalElapsedTime(){
+		return totalElapsedTime;
+	}
+
+	public boolean isKeywordIdentifier(Token token){
+		boolean b = existKeyWordToVerify(token);
+		if(b == false || inExpr > 0) return true;
+		return false;
+	}
+
+	public boolean existKeyWordToVerify(Token token){
+		boolean b = kwtv.contains(token.getText().toUpperCase());
+		return kwtv.contains(token.getText().toUpperCase());
+	}
+
+	public boolean removeKeyWordToVerify(String tokenImage){
+		Iterator<String> itr = kwtv.iterator(); 
+	    while (itr.hasNext()) 
+	    { 
+	        String toVerify = (String)itr.next(); 
+	        if (toVerify.equalsIgnoreCase(tokenImage)) {
+	            itr.remove(); 
+	            return true;
+	        }
+	    } 
+	    return false;
+	}
+}
+
+options {tokenVocab=VisualBasic6CompUnitLexer;}
+
+wrapper :  // CONTORNA O ERRO DE "Mismatched EOF in ANTLR 4"
+           // Sugest�o dde contorno em https://stackoverflow.com/questions/35448199/mismatched-eof-in-antlr-4
+
+	startRule EOF
+;
+
+startRule : module {totalElapsedTime = elapsedTime.elapsedTime(); System.out.println("Total Elapsed Time: " + totalElapsedTime);} ;
+
+module : (  metadata  | builtinDeclaration |  beginBlock |endOfStmt)+
+	;
+	
+builtinDeclaration : 
+        modifier+? declaration 
+      | declaration
+      | variableDeclaration  
+      | runTimeDependency  
+;
+
+variableDeclaration : 
+	    modifier+  variableList
+;
+
+modifier : 
+      scopeModifier  
+	| durationModifier   
+;
+
+scopeModifier : 
+	  GLOBAL
+	| PUBLIC  
+	| PRIVATE 
+	| FRIEND 
+	| DIM  
+;
+
+durationModifier :
+	  CONST
+	| STATIC  
+;
+
+formalParamOption : 
+      OPTIONAL  
+	| BYVAL    
+	| BYREF  
+	| PARAMARRAY 
+;
+
+fieldLength : 
+ '*'   expr 
+;
+
+initialValue :  
+   '='   expr 
+;
+
+methodType : 
+	  SUB
+	| FUNCTION
+	| propertyGetSet 
+;
+
+propertyGetSet : 
+    PROPERTY_GET 
+  | PROPERTY_SET 
+  | PROPERTY_LET  
+;
+
+builtinType : 
+      ANY 
+    | BOOLEAN
+    | BYTE 
+    | COLLECTION  
+    | DATE  
+    | DOUBLE
+    | INTEGER  
+    | LONG 
+    | OBJECT  
+    | SINGLE  
+    | STRING  
+    | VARIANT  
+;
+
+condRealParameterList :
+       ( (',' | ';')*?  formalParamOption? condRealParameter )+
+;
+
+condRealParameter :
+	condExpr   
+;
+
+realParameterList :
+       ( (',' | ';')*?  formalParamOption? realParameter )+
+;
+
+realParameter :
+	RealFormalParam=expr   ('=' | ':=') RealParam=expr |  RealParam=expr   
+;
+
+endOfStmt : 
+	  newLine
+	| stmtDelimiter
+	;
+	
+declaration : 
+	  methodDefStmt
+	| declareStmt  
+	| typeDefStmt  
+	| enumDefStmt   
+	| eventDefStmt 
+;
+
+runTimeDependency : 
+	OBJECT '=' runTimeDependencyDeclaration 
+;
+
+runTimeDependencyDeclaration : 
+	hklm ';' runTimeDependencyName 
+;
+
+runTimeDependencyName : 
+	stringLiteral  
+;
+
+hklm : 
+	stringLiteral  
+;
+
+eventDefStmt : 
+	EVENT   
+	Name=id
+	formalParameters?
+    asTypeClause?
+;
+
+declareStmt : 
+	DECLARE   
+	PTRSAFE?
+	methodType 
+	Name=atom
+	library  
+	alias?
+	formalParameters?
+    asTypeClause?
+;
+
+library : 
+	LIB  expr
+;
+
+alias :
+ ALIAS expr  
+;
+
+formalParameters :
+	  '('   ')'  
+	|   '('    formalParameter   (','   formalParameter)*   ')'  
+;
+
+formalParameter : 
+	  formalParamOption+ variableStmt
+	| variableStmt 
+;
+
+arrayDef :
+ '(' realParameterList? ')' 
+;
+
+variableStmt : 
+    ( WITHEVENTS Name=atom  (arrayDef |  redimRange)?
+	  | Name=atom  (arrayDef | redimRange)?
+	)
+      asTypeClause?  fieldLength? initialValue?
+;
+
+asTypeClause : 
+     AS   newOp? type 
+;
+
+redimRange :
+ '(' expr TO expr ')'
+;
+
+enumDefStmt :
+   ENUM
+   Name=id   endOfStmt+?
+   enumValueList?
+   endEnumTerminal endOfStmt  
+;
+
+enumValueList : 
+	( variableStmt endOfStmt+ )+
+;
+
+endEnumTerminal : 
+	END_ENUM 
+;
+
+type : 
+    	builtinType 
+	|   expr  
+;
+
+typeDefStmt : 
+   TYPE   
+   Name=id   endOfStmt+
+   (variableStmt    endOfStmt+)+
+    endTypeTerminal   endOfStmt 
+;
+
+variableList : 
+	variableStmt ( ',' variableStmt	)*
+;
+
+endTypeTerminal :
+	END_TYPE  
+;
+
+methodDefStmt : 
+   Type=methodType  
+   Name=id  
+   formalParameters?  
+   asTypeClause?
+   endOfStmt+?
+   blockStmt?
+   endMethod   
+   endOfStmt?     //pode ser �ltima linha do arquivo
+;
+
+blockStmt : 
+		(stmt | endOfStmt)+
+;
+
+stmt : 
+      label  
+   	| lineNumber
+   		| commandStmt
+   	
+	| assignmentStmt  // como fazer lookAhead de assigment	
+//	| commandStmt
+	| builtinDeclaration
+	| variableDeclaration
+	| {!existKeyWordToVerify(_input.LT(1))}? implicitCallStmt 
+// A ORDEM � IMPORTANTE declaration() tem que vir depois de implicitCall e expr
+;
+
+label : 
+	LABEL
+;
+
+lineNumber : 
+	LINENUMBER label? 
+;
+
+// Invocation, call a function or a procedure invocationStmt could be a better name
+implicitCallStmt : 
+ Name=expr   realParameterList?
+;
+
+commandStmt : 
+      appActivateStmt  
+    | attributeStmt   
+    | beepStmt  
+	| callStmt  
+	| chDirStmt  
+	| chDriveStmt  
+	| closeStmt  
+	| dateStmt  
+	| deleteSettingStmt  
+	| doLoopStmt  
+	| doEventsStmt  
+	| endStmt  
+	| eraseStmt   
+	| errorStmt  
+	| exitStmt  
+	| filecopyStmt   
+	| forStmt  	
+	| getStmt  
+	| goSubStmt  
+	| goToStmt  
+	| ifThenElseStmt  
+	| inputStmt
+	| killStmt
+	| letStmt
+	| lineInputStmt
+	| loadStmt
+	| lockStmt
+	| unLockStmt
+	| lSetStmt
+    | mkDirStmt
+	| nameStmt
+	| onErrorStmt
+	| onGoStmt
+	| openStmt
+	| printStmt 
+	| putStmt
+	| raiseEventStmt
+	| randomizeStmt
+	| reDimStmt
+	| resetStmt
+	| resumeStmt
+	| rmDirStmt
+	| rSetStmt
+	| saveSettingStmt
+	| seekStmt
+	| selectCaseStmt 
+	| sendKeysStmt
+	| setStmt
+	| setAttrStmt
+	| stopStmt
+	| timeStmt
+	| unLoadStmt
+	| whileWendStmt 
+    | widthStmt
+	| withStmt
+	| writeStmt 
+;	
+
+//=>AppActivate title, [ wait ] https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/appactivate-statement
+appActivateStmt : 
+	APPACTIVATE    realParameterList
+;
+
+//>Beep https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/beep-statement
+beepStmt : 
+	BEEP   
+;
+
+//=>[ Call ] name [ argumentlist ] https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/call-statement
+callStmt : 
+	CALL   expr  
+;
+
+//=> ChDir path https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/chdir-statement
+chDirStmt : 
+	CHDIR   
+;
+
+//=> ChDrive drive https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/chdrive-statement
+chDriveStmt : 
+	CHDRIVE   expr   
+;
+
+//=> Close [ filenumberlist ] https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/close-statement#example
+closeStmt : 
+	CLOSE    (','? expr)+ 
+;	
+
+//=> Date = date [ filenumberlist ] https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/date-statement
+dateStmt : 
+	DATE '=' expr  
+;
+
+//=> DeleteSetting appname, section, [ key ] https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/deletesetting-statement
+deleteSettingStmt :
+	DELETESETTING realParameterList 
+;
+
+//=> Do...Loop https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/doloop-statement	
+doLoopStmt :
+      doWhile | doUntil | doInconditional   
+;
+
+doInconditional :
+	DO endOfStmt+? 
+		blockStmt?
+    endLoop   
+;
+
+doWhile : 
+  DO_WHILE condExpr endOfStmt+? 
+	     blockStmt?
+  endLoop  
+;
+
+doUntil : 
+  DO_UNTIL condExpr endOfStmt+? 
+	 blockStmt?
+endLoop
+;
+
+//
+//IMPORTANTE: A ordem das alternativas � primordial, para que n�o se fa�a "backtrack"
+//
+endLoop : 
+	  LOOP_WHILE condExpr  
+	| LOOP_UNTIL condExpr  
+	| LOOP  
+;
+
+doEventsStmt : 
+	DOEVENTS    
+;
+
+// https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/end-statement#example
+endStmt :
+	END   
+;
+
+//=>https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/erase-statement
+eraseStmt : 
+ ERASE expr   
+;
+
+//=>https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/error-statement
+errorStmt : 
+	ERROR   expr
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/exit-statement
+exitStmt : 
+ ( exitDo | exitFor | exitFunction | exitProperty | exitSub) 
+;
+
+exitDo :
+	EXIT_DO   
+;
+
+exitFor : 
+	EXIT_FOR  
+;
+
+exitFunction : 
+	EXIT_FUNCTION  
+;
+
+exitProperty : 
+	EXIT_PROPERTY   
+;
+
+exitSub : 
+	EXIT_SUB   
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/filecopy-statement
+filecopyStmt : 
+	FILECOPY   realParameterList
+;
+
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/fornext-statement
+forStmt : 
+   FOR   {addKeyWordToVerify("NEXT");}   // termina��o do comando "for"
+   		(forEach | forNext)  
+;
+
+forEach : 
+	EACH expr IN expr endOfStmt+? 
+		 blockStmt?
+    nextFor  
+;
+
+counter : 
+	assignmentStmt TO expr
+;
+
+forNext : 
+	counter (STEP expr)? 
+       endOfStmt+ 
+       blockStmt?
+   nextFor 
+;
+
+nextFor : 
+	NEXT  {removeKeyWordToVerify("NEXT");} expr? 
+;
+
+//=>https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/get-statement
+getStmt : 
+ GET  realParameterList   
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/gosubreturn-statement
+goSubStmt : 
+	GOSUB   Name=expr  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/goto-statement
+goToStmt : 
+	GOTO   Name=expr 
+;
+
+ifThenElseStmt :
+       ifInBlock
+    |   ifInLine
+;
+
+ifInBlock : 
+	IF condExpr THEN endOfStmt+?
+		ifTrueInBlock?
+		elseIf*
+		ifFalseInBlock?
+	END_IF  
+	endOfStmt 
+;
+
+ifTrueInBlock : 
+  blockStmt+
+;
+
+elseIf : 
+	elseIfClause condExpr THEN endOfStmt  
+	blockStmt*
+;
+
+ifFalseInBlock : 	
+	elseClause   endOfStmt+?
+	blockStmt*
+;
+
+elseClause :
+	ELSE
+;
+
+elseIfClause :
+	ELSEIF
+;
+
+ifInLine : 
+	IF condExpr THEN ifTrueInLine? ifFalseInLine?
+;
+
+ifTrueInLine : 
+	stmt
+;	
+
+ifFalseInLine : 
+	elseClause stmt?
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/inputstatement
+inputStmt : 
+	INPUT   realParameterList 
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/kill-statement
+killStmt : 
+ 	KILL  expr  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/let-statement#example
+letStmt : 
+   LET expr  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/line-inputstatement
+lineInputStmt : 
+	LINE_INPUT realParameterList 
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/load-statement
+loadStmt : 
+	LOAD expr  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/lock-unlock-statements
+lockStmt : 
+	LOCK realParameterList  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/lock-unlock-statements
+unLockStmt : 
+	UNLOCK realParameterList 
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/lset-statement
+lSetStmt : 
+	LSET expr
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/mkdir-statement
+mkDirStmt : 
+	MKDIR expr 
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/name-statement
+nameStmt : 
+	NAME expr AS expr  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/on-error-statement
+onErrorStmt :
+	ON_ERROR  (onErrorGoToLine | resumeNext )  
+;
+
+onErrorGoToLine :
+	GOTO  ( label | expr )
+;
+
+resumeNext : 
+	RESUME 	NEXT  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/ongosub-ongoto-statements
+onGoStmt : 
+	ON expr  ( GOTO | GOSUB)  
+	   realParameterList 
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/open-statement
+openStmt : 
+	OPEN expr FOR ( APPEND | BINARY | INPUT | OUTPUT | RANDOM ) 
+	   	(ACCESS  (READ | WRITE )+)? 
+	    lockMode? AS   expr (LEN assignmentOp expr)?
+;
+
+lockMode : 
+   SHARED | LOCK_READ | LOCK_WRITE | LOCK_READ_WRITE  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/printstatement
+printStmt :
+	PRINT  realParameterList
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/put-statement
+putStmt : 
+	PUT realParameterList
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/raiseevent-statement
+raiseEventStmt : 
+	RAISEEVENT expr  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/randomize-statement#syntax
+randomizeStmt : 
+  	RANDOMIZE expr?  
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/redim-statement
+reDimStmt : 
+	REDIM PRESERVE? variableStmt  
+;	 	  
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/reset-statement
+resetStmt : 
+	RESET  
+;
+
+//=>RSET https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/resume-statement
+resumeStmt : 
+	RESUME  ( NEXT |  expr)?
+;
+
+rmDirStmt : 
+	RMDIR  expr
+;
+
+rSetStmt : 
+	 RSET  assignmentStmt
+;
+
+saveSettingStmt : 
+	SAVESETTING realParameterList 
+;
+
+seekStmt : 
+	SEEK realParameterList  
+;
+
+selectCaseStmt : 
+	SELECT CASE expr endOfStmt+
+	 blockCase?
+	endSelect
+;
+
+blockCase : 
+	sC_Case+
+;
+
+endSelect :
+	END_SELECT
+;
+
+sC_Case :
+	CASE  sC_Cond endOfStmt+?
+		 blockStmt?
+;
+
+sC_Cond : 
+	elseClause	 														
+    | condExpr ((',' | TO) condExpr)*	 	
+    |  expr TO expr	 		
+;
+
+sendKeysStmt :
+	SENDKEYS realParameterList  
+;
+
+setStmt : 
+	 SET assignmentStmt
+;
+
+setAttrStmt : 
+	SETATTR realParameterList  
+;
+
+stopStmt : 
+	STOP
+;
+
+timeStmt : 
+	TIME '='  expr
+;
+
+//=> https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/load-statement
+unLoadStmt : 
+	UNLOAD expr  
+;
+
+whileWendStmt : 
+	WHILE condExpr endOfStmt+?
+		blockStmt?
+	WEND
+;
+
+widthStmt : 
+	WIDTH expr   
+;
+
+withStmt : 
+	WITH  Name=expr endOfStmt+?
+		blockStmt?
+	END_WITH
+;
+
+writeStmt : 
+	WRITE realParameterList   
+;
+
+
+endMethod : 
+     END_SUB  
+   | END_FUNCTION
+   | END_PROPERTY  
+;
+
+//=======================================================================================
+
+newLine :
+	NEWLINE ;
+
+stmtDelimiter :
+	STMT_DELIMITER ;
+	
+metadata :
+	versionStmt    
+   | attribute    
+   | directives    
+	;
+	
+versionStmt :
+	VERSION number CLASS?
+;
+
+attribute : 
+  attributeStmt   
+;
+
+directives : 
+    optionStmt    
+  | defTypeStmt  
+;  
+
+
+attributeStmt : 
+//	ATTRIBUTE   assignmentStmt  endOfStmt 
+	ATTRIBUTE   Name=expr equalityOp  expr (',' expr)*?   endOfStmt
+	 
+;
+
+assignmentStmt : 
+	lshAssign equalityOp rshAssign
+//	expr equalityOp  condExpr  
+;
+
+lshAssign :
+expr
+;
+
+rshAssign :
+	condExpr
+;
+
+optionStmt : 
+	OPTION optionClause
+	;
+
+optionClause : 
+		(BASE
+	   | COMPARE (BINARY | TEXT)
+	   | EXPLICIT OFF?
+	   | PRIVATE)	    			
+;
+
+defTypeStmt : 
+  (   DEFBOOL
+ 	| DEFBYTE 
+ 	| DEFINT  
+ 	| DEFLNG   
+ 	| DEFCUR  
+ 	| DEFSNG   
+ 	| DEFDBL  
+ 	| DEFDEC  
+ 	| DEFDATE  
+ 	| DEFSTR   
+ 	| DEFOBJ
+   ) rangeDefType 
+;
+
+rangeDefType : 
+	id   ( '-' identifier)?
+;
+
+paramAssignmentOp : 
+	PARAM_EQUALS   
+;
+
+ equalityOp : 
+    assignmentOp   
+  | paramAssignmentOp   
+;
+
+assignmentOp : 
+  EQUAL_CHAR  
+;
+
+beginBlock : 
+	BEGIN ( attributeBlock | formDefinitionBlock )
+;
+
+attributeBlock :  
+	    endOfStmt+?
+		attributeInLine+?
+	END endOfStmt	 	
+;
+
+attributeInLine :
+	assignmentStmt   endOfStmt
+;
+
+formDefinitionBlock : 
+	   Type=expr Name=expr endOfStmt+?
+		(
+		   BEGIN formDefinitionBlock {addKeyWordToVerify("OBJECT");}
+		|  guiProperty
+		|  guiAttribute
+		)+?
+	END {removeKeyWordToVerify("OBJECT");}  endOfStmt
+;
+
+guiAttribute : 
+	   assignmentStmt endOfStmt+
+;
+
+guiProperty : 
+	BEGINPROPERTY Name=expr expr? endOfStmt+?
+		(guiProperty | guiAttribute)+?
+	ENDPROPERTY endOfStmt+
+;	
+
+condExpr :  
+	{inExpr++; } condExpression {inExpr--;}
+;
+
+expr :  
+   {inExpr++;} expression {inExpr--;}
+;
+
+expression :
+      '(' expression ')'                   
+    |  atom                                
+      
+    | expression '(' ')'                   
+    | expression '(' realParameterList ')'  
+    | expression '(' realParameterList ')' '-'   '(' realParameterList ')' // Printer.Line (5, (11 * fator) + y0)-(5, (17 * fator) + y0)    
+    
+    | memberAccessOp expression 
+    
+    | addOp expression                     
+
+    | NEW expression                       
+    | TYPEOF expression                    
+    | notOp expression                     
+    
+    | expression memberAccessOp expression 
+  	| <assoc=right> expression exponentOp expression 
+	| expression multOp expression                   
+	| expression addOp expression                    
+	| expression relOp expression                    
+	| expression logicalAndOp expression             
+	| expression logicalOrOp expression              
+	| expression concatOp expression                                  
+;
+
+condExpression :
+      '(' condExpression ')'                   
+    |  atom                                
+      
+    | condExpression '(' ')'                   
+    | condExpression '(' condRealParameterList ')'  
+    | condExpression '(' condRealParameterList ')' '-' '(' condRealParameterList ')'  // Printer.Line (5, (11 * fator) + y0)-(5, (17 * fator) + y0)
+    
+    | memberAccessOp condExpression 
+    
+    | addOp condExpression  
+    
+    | condExpression memberAccessOp condExpression
+    
+    | instanceOp condExpression
+//    | NEW condExpression                       
+//    | TYPEOF condExpression                    
+    | notOp condExpression
+     
+  	| <assoc=right> condExpression exponentOp condExpression 
+  	| condExpression multOp condExpression                   
+	| condExpression addOp condExpression                    
+	| condExpression condRelOp condExpression                
+	| condExpression logicalAndOp condExpression             
+	| condExpression logicalOrOp condExpression              
+	| condExpression concatOp condExpression                               
+;
+
+atom :
+	  	  id 
+		| number  
+		| literal  
+		| booleanLiteral  
+		| fileIdentifier  
+;
+
+concatOp : 
+	AMP_CHAR  
+;
+
+instanceOp :
+	NEW
+	| TYPEOF
+;
+
+notOp : 
+	NOT
+;
+
+notEqualOp : 
+	NOT_EQUAL
+;
+
+equalOp :
+	EQUAL_CHAR
+;
+
+memberAccessOp : 
+  DOT_CHAR | NOT_CHAR
+;
+
+logicalAndOp : 
+	AND    
+;
+
+logicalOrOp : 
+	OR   
+;
+
+relOp : 
+  (LT_CHAR | LE_CHAR | GT_CHAR | GE_CHAR | NOT_EQUAL | IS | LIKE )   
+;
+
+condRelOp : 
+  (LT_CHAR | LE_CHAR | GT_CHAR | GE_CHAR |  EQUAL_CHAR | NOT_EQUAL | IS | LIKE)   
+;
+
+newOp : 
+	NEW 
+;
+
+typeOfOp : 
+	TYPEOF 
+;
+
+addOp : 
+	(PLUS_CHAR | MINUS_CHAR)  
+;
+
+unaryOp : 
+	(PLUS_CHAR | MINUS_CHAR)   
+;
+
+exponentOp :
+	EXPONENT_CHAR
+;
+
+multOp: 
+	(MULT_CHAR | DIV_CHAR | MOD_CHAR | MOD)  
+;
+
+number :
+	integer
+	| float_
+	| exponential
+;
+
+integer :
+	INTEGER ;
+
+float_ :
+	FLOAT ;	
+
+exponential :
+	EXPONENTIAL ;	
+
+literal : 
+   	  stringLiteral 
+    | booleanLiteral
+	| imageValue   
+ 	| shortcut  
+	| curlyLiteral  
+	| dateLiteral  
+    | hexLiteral 
+    | colorLiteral 
+    ;
+    
+stringLiteral :
+	STRING_LITERAL
+; 
+
+imageValue :
+	IMAGE_VALUE
+;   
+
+shortcut :
+	SHORTCUT
+;
+
+curlyLiteral :
+	CURLY_LITERAL
+;
+
+hexLiteral :
+	HEXLITERAL
+;
+
+dateLiteral :
+	DATELITERAL
+;
+
+colorLiteral :
+	COLORLITERAL
+;
+  
+booleanLiteral :
+	TRUE | FALSE
+; 
+
+fileIdentifier :
+	FILENUMBER
+;
+
+id : 
+      identifier
+    | keyWordIdentifier 
+;
+
+identifier :
+	IDENTIFIER
+;
+
+keyWordIdentifier : 
+    ACCESS 
+  | ADDRESSOF 
+  | ANDALSO
+  | ATTRIBUTE
+  | APPACTIVATE
+  
+  | BASE 
+  | BEGIN
+  | BEGINPROPERTY
+  | BEEP
+  | BINARY
+  | CALL
+//  | CASE
+  | CHDIR
+  | CHDRIVE
+  | CLASS
+  | CLOSE
+  | COLLECTION
+  | COMPARE
+  | DATE
+  | DECLARE
+  | DEFBOOL
+  | DEFBYTE
+  | DEFDATE
+  | DEFDBL
+  | DEFDEC
+  | DEFCUR
+  | DEFINT
+  | DEFLNG
+  | DEFOBJ
+  | DEFSNG
+  | DEFSTR
+  | DEFVAR
+  | DELETESETTING
+  | DOEVENTS
+//  | DO
+  
+  | EMPTY
+
+  | ENUM
+  | EQV
+  | ERASE
+  | ERROR
+ 
+  | EVENT
+  | EXIT
+  | EXPLICIT 
+  | OFF
+  | FILECOPY
+  | FRIEND
+  | FOR
+  | FUNCTION
+  | GET
+  | GOSUB
+  | GOTO
+//  | IF
+  | IMP
+  | IMPLEMENTS
+  | IN
+  | INPUT
+  | IS
+  | KILL
+  | LOAD
+  | LOCK
+  | LET
+  | LEN
+  
+  | LIB
+  | LIKE
+  | LINE
+  | LSET
+  | MACRO
+  | ME 
+//  | MID
+  | MKDIR
+  | MODULE
+  | NAME
+
+  | NOTHING
+  | NULL
+  | ON
+  | OPEN
+  | OPTION
+  | OUTPUT
+    
+  | PRINT
+  
+  | PROPERTY
+  | PTRSAFE
+  | PUT
+  | RANDOM
+  | RANDOMIZE
+  | RAISEEVENT
+  | READ
+  | REDIM
+  | RESET
+  | RESUME
+  | RETURN
+  | RMDIR
+  | RSET
+  | SAVEPICTURE
+  | SAVESETTING
+  | SEEK
+  | SELECT
+  | SENDKEYS
+  | SET
+  | SETATTR
+  | SHARED
+  | SPC
+  | STEP
+  | STOP
+  | STRING
+  | TAB
+  | TEXT
+  | THEN
+  | TIME
+  | TYPE
+  | UNLOAD
+  | UNLOCK
+  | UNTIL
+  | VERSION
+  | WHILE
+  | WIDTH
+  | WITH
+  | WRITE
+  | XOR
+  
+  //==== abaixo v�o todas as "palavras reservadas" que iniciam commando e 
+  //     podem se confundir com regras de comandos ou regras de vari�veis 
+  //     importante assignment n�o pode ter "expr" em lhs  para n�o marcar inExpr = true
+  
+    | {isKeywordIdentifier(_input.LT(1))}? NEXT 
+    | {isKeywordIdentifier(_input.LT(1))}? ERROR
+    | {isKeywordIdentifier(_input.LT(1))}? OBJECT
+    
+;
+		

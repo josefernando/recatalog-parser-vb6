@@ -1,0 +1,105 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion> 
+
+  <groupId>br.com.recatalog</groupId>
+  <artifactId>parser.visualbasic6</artifactId>
+  <version>1.1.1</version>
+  <packaging>jar</packaging>
+
+  <name>parser.visualbasic6</name>
+  <url>http://maven.apache.org</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.target>11</maven.compiler.target>
+    <maven.compiler.source>11</maven.compiler.source>
+  </properties>
+
+  <dependencies>
+  
+  <dependency>
+    <groupId>br.com.recatalog</groupId>
+  	<artifactId>recatalog.core</artifactId>
+  	<version>1.0.0</version>
+  </dependency>  
+  
+	 <!-- https://mvnrepository.com/artifact/org.antlr/antlr4-runtime -->
+	<dependency>
+	    <groupId>org.antlr</groupId>
+	    <artifactId>antlr4-runtime</artifactId>
+	    <version>4.8</version>
+	</dependency>
+	
+	<!-- https://www.antlr.org/download/antlr-4.8-complete.jar
+	  necessário para rodar TestRig
+	 -->
+	<dependency>
+		<groupId>org.antlr</groupId>
+		<artifactId>antlr.complete</artifactId> 
+	    <version>4.8</version> 
+	</dependency>
+	
+	<dependency>
+	  <groupId>br.com.recatalog</groupId>
+  	  <artifactId>util</artifactId>
+      <version>1.0.0</version>  
+    </dependency> 
+    
+    <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine -->
+	<dependency>
+	    <groupId>org.junit.jupiter</groupId>
+	    <artifactId>junit-jupiter-engine</artifactId>
+	    <version>5.6.0</version>
+	    <scope>test</scope>
+	</dependency>
+    
+    
+	<!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
+	<dependency>
+	    <groupId>org.junit.jupiter</groupId>
+	    <artifactId>junit-jupiter-api</artifactId>
+	    <version>5.6.0</version>
+	    <scope>test</scope>
+	</dependency>
+  </dependencies>
+  
+  <build>
+  	<plugins>
+    	<plugin>
+	        <groupId>org.apache.maven.plugins</groupId>
+	        <artifactId>maven-compiler-plugin</artifactId>
+	        <version>3.8.1</version>
+	        <configuration>
+	          <source>11</source>
+	          <target>11</target>
+	        </configuration>
+        </plugin>
+      
+      <!-- Necessário para rodar exec:java
+      mvn exec:java -DmainClass="org.antlr.v4.gui.TestRig" -Dexec.args="Expr startRule -gui C:\temp\input.txt"
+       -->
+	     <plugin>
+	        <groupId>org.codehaus.mojo</groupId>
+	        <artifactId>exec-maven-plugin</artifactId>
+	        <version>1.6.0</version>
+		  	<configuration>
+		    	<mainClass>org.antlr.v4.runtime.misc.TestRig</mainClass> 
+		  	</configuration>
+	      </plugin>      
+      
+		  <plugin>
+			    <groupId>org.antlr</groupId>
+			    <artifactId>antlr4-maven-plugin</artifactId>
+			    <version>4.8</version>
+			    <executions>
+			        <execution> 
+			            <goals>
+			                <goal>antlr4</goal>
+			            </goals>
+			        </execution>
+			    </executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
