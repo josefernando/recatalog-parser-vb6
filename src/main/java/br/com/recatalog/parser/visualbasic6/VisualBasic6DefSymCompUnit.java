@@ -17,6 +17,7 @@ import br.com.recatalog.core.Symbol;
 import br.com.recatalog.core.SymbolFactory;
 import br.com.recatalog.core.SymbolType;
 import br.com.recatalog.core.visualbasic6.LanguageVb6;
+import br.com.recatalog.parser.util.UnResolvedSymbolList;
 import br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnitParser.AsTypeClauseContext;
 import br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnitParser.DeclarationContext;
 import br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnitParser.EnumDefStmtContext;
@@ -70,7 +71,11 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 		symbolFactory = (SymbolFactory) st.getProperties().mustProperty("SYMBOL_FACTORY");
 		scopes = new ArrayDeque<Scope>();
 		globalScope = st.getGlobalScope();
-		pushScope(st.getGlobalScope());		
+		pushScope(st.getGlobalScope());	
+		
+		module = new ModuleProperty((String)this.properties.mustProperty("FILE_PATH"));
+
+//	    this.st.getUnResolvedSymbolList().put(module.getName().toUpperCase(), new UnResolvedSymbolList());
 	}
 	
 /**	

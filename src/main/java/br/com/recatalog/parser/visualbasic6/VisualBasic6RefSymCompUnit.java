@@ -12,6 +12,7 @@ import br.com.recatalog.core.ContextTreeData;
 import br.com.recatalog.core.Scope;
 import br.com.recatalog.core.Symbol;
 import br.com.recatalog.core.SymbolFactory;
+import br.com.recatalog.parser.util.UnResolvedSymbolList;
 import br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnitParser.AtomContext;
 import br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnitParser.AttributeStmtContext;
 import br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnitParser.CondExpressionContext;
@@ -39,7 +40,9 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 	String moduleName;
 	Boolean optionExplicit;
 
-	Deque<WithStmtContext> withStack;
+	Deque<WithStmtContext> withStack; 
+	
+	UnResolvedSymbolList unResolvedSymbolList;
 	
 	public VisualBasic6RefSymCompUnit(PropertyList properties) {
 		this.properties = properties;
@@ -48,6 +51,9 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 		this.optionExplicit = (Boolean) this.properties.mustProperty("OPTION_EXPLICIT");
 
 		this.withStack = new ArrayDeque<WithStmtContext>();
+		
+		this.unResolvedSymbolList = this.st.getUnResolvedSymbolList().get(moduleName);
+
 	}
 	
 	private String removeParenTypeIndicator(String id) {
@@ -171,6 +177,13 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 			ctd.setSymbol(sym);
 		}
 		else {
+			if(unResolvedSymbolList == null) {
+				st.getUnResolvedSymbolList()
+				.put(moduleName.toUpperCase(), new UnResolvedSymbolList());
+				unResolvedSymbolList = st.getUnResolvedSymbolList().get(moduleName.toUpperCase());
+			}
+			unResolvedSymbolList.addUnResolvedSymbolDetails(ctx.getText(), ctx.start.getLine(), ctx.start.getCharPositionInLine());
+
 			BicamSystem.printLog("WARNING", String.format("Symbol: %s not resolved in line: %d at position: %d "
 					, ctx.getText() , ctx.start.getLine(), ctx.start.getCharPositionInLine()));
 			}
