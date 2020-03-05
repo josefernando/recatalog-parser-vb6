@@ -37,6 +37,7 @@ public class InventoryTest {
 
 	  	 boolean unitTest = vb6InventoryCompUnit.getInventory().getInventory().equals(parseRegex.getInventory().getInventory()); 
 //	  	 System.err.println(String.format("Unit Test: %s%n", unitTest == true ? "Succeeded" : "Failed"));		
+	  	System.out.println(vb6InventoryCompUnit.getInventory().getInventory().toString());
 	  	 if(!unitTest) {
 	  		 String msg = System.lineSeparator()+ vb6InventoryCompUnit.getInventory().getInventory().toString();
 	  		 msg = msg + System.lineSeparator()+ parseRegex.getInventory().getInventory().toString();
