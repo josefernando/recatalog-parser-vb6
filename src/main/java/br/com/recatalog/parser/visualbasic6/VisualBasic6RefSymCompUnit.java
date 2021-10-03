@@ -1,6 +1,7 @@
 package br.com.recatalog.parser.visualbasic6;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -30,7 +31,6 @@ import br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnitParser.WithStmtC
 import br.com.recatalog.util.BicamSystem;
 import br.com.recatalog.util.NodeExplorer;
 import br.com.recatalog.util.PropertyList;
-
 
 public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseListener {
 	SymbolTableBuilder st;
@@ -92,6 +92,9 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 	
 	@Override
 	public void enterExpression(VisualBasic6CompUnitParser.ExpressionContext ctx) {
+ /*
+  * Desconsidera quando o identificador é para definição
+  */
 		if(NodeExplorer.getAncestorClass(ctx, AttributeStmtContext.class.getSimpleName()) != null) return;
 		if(NodeExplorer.getAncestorClass(ctx, FormDefinitionBlockContext.class.getSimpleName()) != null) return;
 		if(NodeExplorer.getAncestorClass(ctx, VariableStmtContext.class.getSimpleName()) != null) return;
@@ -106,7 +109,14 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 			&& RealParameterListContext.class.isInstance(p) == false
 			&& AtomContext.class.isInstance(p) == false
 			) return;
+			// É parte de nome composto como em: A.B.C
 			if(NodeExplorer.hasSibling(ctx, MemberAccessOpContext.class.getSimpleName())) return;
+		
+			
+/*
+ * Comentado Ze porque não mostrava referencias do identificado SqlInit			
+ */
+			
 			if(NodeExplorer.hasSibling(ctx, CondRealParameterListContext.class.getSimpleName())) return;			
 			if(NodeExplorer.hasSibling(ctx, RealParameterListContext.class.getSimpleName())) return;
 			if(NodeExplorer.hasAncestorClass(ctx, ExpressionContext.class.getSimpleName())) {
@@ -135,6 +145,10 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 			&& AtomContext.class.isInstance(p) == false
 			) return;
 			if(NodeExplorer.hasSibling(ctx, MemberAccessOpContext.class.getSimpleName())) return;
+/*
+ * Comentado Ze porque não mostrava referencias do identificado SqlInit			
+ */
+				
 			if(NodeExplorer.hasSibling(ctx, CondRealParameterListContext.class.getSimpleName())) return;			
 			if(NodeExplorer.hasSibling(ctx, RealParameterListContext.class.getSimpleName())) return;	
 			if(NodeExplorer.hasAncestorClass(ctx, CondExpressionContext.class.getSimpleName())) {
@@ -145,12 +159,28 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 		
 		enterIdentifierExpression(ctx);
 	}
+	
+	private void addToWhereUsedCtd(Symbol sym, ContextTreeData ctd) {
+		if(sym == null) {
+			return;
+		}
+
+		ArrayList<ContextTreeData> whereUsedCdt = new ArrayList<>();
+		whereUsedCdt = (ArrayList<ContextTreeData>)sym.getProperty("WHERE_USED_CTD");
+		if(whereUsedCdt == null) {
+            whereUsedCdt = new ArrayList<>();
+			sym.addProperty("WHERE_USED_CTD", whereUsedCdt);
+		}
+		whereUsedCdt.add(ctd);
+	}
 
 	private void enterIdentifierExpression(ParserRuleContext ctx) {
 		String identifierName = getIdentifierName(ctx);
 		
 		ContextTreeData ctd = st.getCTD(ctx);
 		Scope ctxScope = ctd.getScope();
+		st.setWhereUsedCdt(ctd);
+		
 		PropertyList resolvProp = new PropertyList();
 		resolvProp.addProperty("NAME_TO_RESOLVE", identifierName);
 		resolvProp.addProperty("CONTEXT", ctx);
@@ -175,6 +205,8 @@ public class VisualBasic6RefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 		
 		if(sym != null) {
 			ctd.setSymbol(sym);
+			st.setWhereUsedCdt(ctd);
+		    addToWhereUsedCtd(sym,ctd);
 		}
 		else {
 			if(unResolvedSymbolList == null) {

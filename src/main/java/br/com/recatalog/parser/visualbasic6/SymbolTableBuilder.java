@@ -1,6 +1,7 @@
 package br.com.recatalog.parser.visualbasic6;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -12,6 +13,7 @@ import java.util.Map.Entry;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.stringtemplate.v4.ST;
 
 import br.com.recatalog.core.ContextTreeData;
 import br.com.recatalog.core.Language;
@@ -22,8 +24,10 @@ import br.com.recatalog.core.visualbasic6.BuiltinScope;
 import br.com.recatalog.core.visualbasic6.GlobalScope;
 import br.com.recatalog.core.visualbasic6.LanguageVb6;
 import br.com.recatalog.core.visualbasic6.SymbolFactoryVisualBasic6;
+//import br.com.recatalog.parser.graph.visualbasic6.GraphCompUnit;
 import br.com.recatalog.parser.util.UnResolvedSymbolList;
 import br.com.recatalog.util.BicamSystem;
+import br.com.recatalog.util.NodeExplorer;
 import br.com.recatalog.util.PropertyList;
 
 public class SymbolTableBuilder {             
@@ -39,6 +43,9 @@ public class SymbolTableBuilder {
 	SymbolFactory symbolFactory;
 	
 	IdentityHashMap<Symbol, ArrayList<ParserRuleContext>> whereUsed; 
+	IdentityHashMap<Symbol, ArrayList<ContextTreeData>> whereUsedCdt; 
+	IdentityHashMap<ParserRuleContext, Symbol> ModuleMap; 
+
 	
 	Map<String, UnResolvedSymbolList> unResolvedSymbolList;
 	
@@ -54,7 +61,9 @@ public class SymbolTableBuilder {
 
 		ctdMap = new IdentityHashMap<ParserRuleContext, ContextTreeData>();
 		whereUsed   = new IdentityHashMap<Symbol, ArrayList<ParserRuleContext>>();
-
+		whereUsedCdt = new IdentityHashMap<Symbol, ArrayList<ContextTreeData>>(); 
+		ModuleMap = new IdentityHashMap<ParserRuleContext, Symbol>();
+		
 		globalScope   = createGlobalScope();
 		
 		symbolFactory = new SymbolFactoryVisualBasic6();
@@ -128,6 +137,19 @@ public class SymbolTableBuilder {
     
     public Map<String,PropertyList> getDictionary(){
     	return dictionary;
+    }
+    
+    public IdentityHashMap<Symbol, ArrayList<ContextTreeData>> getWhereUsedCdt() {
+    	return whereUsedCdt;
+    }
+    
+    public void setWhereUsedCdt(ContextTreeData ctd) {
+    	ArrayList<ContextTreeData> ctdList = whereUsedCdt.get(ctd.getSymbol());
+    	if(ctdList == null) {
+    		ctdList = new ArrayList<ContextTreeData>();
+    		whereUsedCdt.put(ctd.getSymbol(),ctdList);
+    	}
+    	ctdList.add(ctd);
     }
 
     private void define(Entry<String, PropertyList> entry) {
@@ -275,6 +297,10 @@ public class SymbolTableBuilder {
 		getDictionary().forEach((moduleName,properties) -> refSymbol(moduleName, properties));
 	}
 	
+//	public void graphComUnitBuider() {
+//		getDictionary().forEach((moduleName,properties) -> graphCompUnitBuilder(moduleName, properties));
+//	}
+	
 	public void refSymbol(String moduleName, PropertyList properties) {
 		ParseTree astree = (ParseTree)properties.mustProperty("ASTREE");
 		
@@ -289,6 +315,24 @@ public class SymbolTableBuilder {
         walker.walk(refSym, astree);        // walk parse tree 
 	}	
 	
+//	public void graphCompUnitBuilder(String moduleName, PropertyList properties) {
+//		ParseTree astree = (ParseTree)properties.mustProperty("ASTREE");
+//		
+//		PropertyList prop = new PropertyList();
+//		prop.addProperty("SYMBOL_TABLE", this);
+//		prop.addProperty("MODULE_NAME", moduleName);
+//
+//		System.err.println("GRAPH COMP UNIT BUILDER: " + moduleName);
+//        GraphCompUnit gcu;
+//		try {
+//			gcu = new GraphCompUnit(this, moduleName, "/");
+//	        ParseTreeWalker walker = new ParseTreeWalker();
+//	        walker.walk(gcu, astree);        // walk parse tree 
+//		} catch (FileNotFoundException e) {
+//			e.printStackTrace();
+//		}
+//	}		
+	
 	public ParseTree getAstree(String moduleName) {
 		PropertyList dicProperties = dictionary.get(moduleName);
 		return (ParseTree) dicProperties.mustProperty("ASTREE");
@@ -301,7 +345,7 @@ public class SymbolTableBuilder {
 	
 	public boolean hasUnResolvedSymbol() {
 		for(Entry<String, UnResolvedSymbolList> ee: unResolvedSymbolList.entrySet()){
-			return true;
+			return true;  
 		}
 		return false;
 	}
@@ -544,6 +588,43 @@ public class SymbolTableBuilder {
 		if(st.hasUnResolvedSymbol())
 			System.err.println("RefSymbols Not Resolved: " + st.hasUnResolvedSymbol());
 		System.err.println(st.getGlobalScope().toString());
+		
+		System.err.println("Symbols resolved: " + st.getWhereUsedCdt().size());
+
+	
+		
+//		for (int iii = 0 ; iii < 2348 ; iii++) {
+			for(Symbol sym : st.getWhereUsedCdt().keySet()){
+				if(sym == null) continue;
+			    if ( sym.getName().equalsIgnoreCase("SqlInit")) {
+			    	System.err.println(sym.getName());
+//			    	System.err.println(st.getWhereUsedCdt().get(sym).size());
+//			    	System.err.println("Symbol Properties: " + sym.getProperties().toString());
+			    	ArrayList<ContextTreeData> ctdList = (ArrayList<ContextTreeData>) sym.getProperties()
+			    			.getProperty("WHERE_USED_CTD");
+			    	for( ContextTreeData cd :ctdList) {
+			    		String msg = (String)cd.getProperties().toString() 
+		    				       + System.lineSeparator()
+		    				       + cd.getContext().start.getLine();
+			    		if(cd.getProperties().getProperty("DEFINITION_LINE") != null) {
+			    			msg = msg + " - Definition line " 
+			    		          + cd.getContext().start.getLine();
+			    		}
+//			    		System.err.println((String)cd.getProperties().toString() 
+//			    				       + System.lineSeparator()
+//			    				       + cd.getContext().start.getLine()
+//			    				       );
+			    		System.err.println(msg);
+			    	}			    	
+			    	//iii = 2348;
+			    	// break;
+			    }
+			}
+		// }
+
+// Testa SymbolGraphUnit
+
+//			st.graphComUnitBuider();
 		
 //		System.err.println(st.getGlobalScope().toString());
     }

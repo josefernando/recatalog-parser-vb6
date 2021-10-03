@@ -690,7 +690,7 @@ goToStmt :
 ;
 
 ifThenElseStmt :
-       ifInBlock
+        ifInBlock
     |   ifInLine
 ;
 
@@ -699,8 +699,12 @@ ifInBlock :
 		ifTrueInBlock?
 		elseIf*
 		ifFalseInBlock?
-	END_IF  
+	endIf  
 	endOfStmt 
+;
+
+endIf :
+END_IF
 ;
 
 ifTrueInBlock : 
@@ -921,7 +925,12 @@ unLoadStmt :
 whileWendStmt : 
 	WHILE condExpr endOfStmt+?
 		blockStmt?
-	WEND
+//	WEND
+whileEnd
+;
+
+whileEnd :
+WEND
 ;
 
 widthStmt : 

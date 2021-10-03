@@ -13,8 +13,8 @@ SYNTAX - LINE CONTINUATION
 To place multiple statements on the same line
 Separate the statements with a colon (:), as in the following example.
 
-1) cuidado para diferenciá-lo de label;
-2) ":" deve ser seguido de espaço ": " ou estar na final da linha, ou seja, seguido de eol (\r\n)
+1) cuidado para diferenciï¿½-lo de label;
+2) ":" deve ser seguido de espaï¿½o ": " ou estar na final da linha, ou seja, seguido de eol (\r\n)
 
 Ex:
 text1.Text = "Hello" : text1.BackColor = System.Drawing.Color.Red
@@ -25,7 +25,7 @@ text1.Text = "Hello" : text1.BackColor = System.Drawing.Color.Red
 //}
 
 @lexer::members {
-// public int HIDDEN_WHITESPACE = 2; //Especificar "1" e não "HIDDEN_WHITESPACE" ERRO a ser corrigido
+// public int HIDDEN_WHITESPACE = 2; //Especificar "1" e nï¿½o "HIDDEN_WHITESPACE" ERRO a ser corrigido
 // public int HIDDEN_COMMENT = 3;
  
  public boolean startOfLine = true;
@@ -333,11 +333,11 @@ fragment
 ESCAPE_STRING : '""' ;
 
 fragment
-TYPE_INDICATOR :   '&'|'%'|'#'|'@'|'$' ;  //  '!' retirado de typeIndicator porque é qualificador de result set
+TYPE_INDICATOR :   '&'|'%'|'#'|'@'|'$' ;  //  '!' retirado de typeIndicator porque ï¿½ qualificador de result set
 //  
 ///*===
-// -> Herança da linguagem BASIC - Variáveis terminadas com os seguintes caracteres
-// -> Não tem qualquer significado em VB ou VB.Net
+// -> Heranï¿½a da linguagem BASIC - Variï¿½veis terminadas com os seguintes caracteres
+// -> Nï¿½o tem qualquer significado em VB ou VB.Net
 //      %                 Integer
 //      &                 Long
 //      !                 Single
@@ -348,16 +348,16 @@ TYPE_INDICATOR :   '&'|'%'|'#'|'@'|'$' ;  //  '!' retirado de typeIndicator porq
 //
 fragment
  LETTER : [a-zA-Z]
-        | '\u00C3'  // Ã
-        | '\u00C7'  // Ç
-        | '\u00D5'  // Õ     
-        | '\u00E3'  // ã
-        | '\u00E2'  // â
-        | '\u00C2'  // Â
-        | '\u00F5'  // õ
-        | '\u00FA'  // ú
-        | '\u00DA'  // Ú                  
-        | '\u00E7'  // ç
+        | '\u00C3'  // ï¿½
+        | '\u00C7'  // ï¿½
+        | '\u00D5'  // ï¿½     
+        | '\u00E3'  // ï¿½
+        | '\u00E2'  // ï¿½
+        | '\u00C2'  // ï¿½
+        | '\u00F5'  // ï¿½
+        | '\u00FA'  // ï¿½
+        | '\u00DA'  // ï¿½                  
+        | '\u00E7'  // ï¿½
         ;
 
 fragment
@@ -370,16 +370,16 @@ fragment
 
 fragment
 NAME_START_CHAR : [a-zA-Z_]
-        | '\u00C3'  // Ã
-        | '\u00C7'  // Ç
-        | '\u00D5'  // Õ     
-        | '\u00E3'  // ã
-        | '\u00E2'  // â
-        | '\u00C2'  // Â
-        | '\u00F5'  // õ
-        | '\u00FA'  // ú
-        | '\u00DA'  // Ú                  
-        | '\u00E7'  // ç
+        | '\u00C3'  // ï¿½
+        | '\u00C7'  // ï¿½
+        | '\u00D5'  // ï¿½     
+        | '\u00E3'  // ï¿½
+        | '\u00E2'  // ï¿½
+        | '\u00C2'  // ï¿½
+        | '\u00F5'  // ï¿½
+        | '\u00FA'  // ï¿½
+        | '\u00DA'  // ï¿½                  
+        | '\u00E7'  // ï¿½
         ;
 
 // case insensitive chars

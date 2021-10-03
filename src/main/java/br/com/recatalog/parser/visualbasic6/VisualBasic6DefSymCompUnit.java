@@ -2,8 +2,10 @@ package br.com.recatalog.parser.visualbasic6;
 
 import java.security.InvalidParameterException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -235,8 +237,28 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
       ContextTreeData ctd = st.addCTD(ctx);
       
       ctd.setScope(getCurrentScope());
-      ctd.setSymbol(sym);		
+      ctd.setSymbol(sym);
+      ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+      addToWhereUsedCtd(sym,ctd);
+      
+      st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
+	
+	private void addToWhereUsedCtd(Symbol sym, ContextTreeData ctd) {
+		if(sym == null) {
+			return;
+		}
+		ArrayList<ContextTreeData> whereUsedCdt = new ArrayList<>();
+		whereUsedCdt = (ArrayList<ContextTreeData>)sym.getProperty("WHERE_USED_CTD");
+		if(whereUsedCdt == null) {
+            whereUsedCdt = new ArrayList<>();
+			sym.addProperty("WHERE_USED_CTD", whereUsedCdt);
+		}
+		whereUsedCdt.add(ctd);
+	}
+	
+	
 	
 	private void tryCreateVariableInPropertyGet(MethodDefStmtContext ctx) {
 		if(ctx.methodType().getText().toUpperCase().contains("PROPERTY ")) {
@@ -269,8 +291,9 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         Symbol sym = symbolFactory.getSymbol(varGetProp);
       
        ContextTreeData ctd = st.getCTD(ctx); // ctd criado em enterMethod
+       ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
        ctd.setScope(getCurrentScope());
-       ctd.setSymbol(sym);		
+       ctd.setSymbol(sym);	
 	}
 	
 	public void enterVariableStmt(VisualBasic6CompUnitParser.VariableStmtContext ctx) {
@@ -303,8 +326,14 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         Symbol sym = symbolFactory.getSymbol(symDeclProp);
         
         ContextTreeData ctd = st.addCTD(ctx);
+
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+        addToWhereUsedCtd(sym,ctd);
+
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
         
         pushScope((Scope)sym);		
 	}
@@ -342,6 +371,11 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         ContextTreeData ctd = st.addCTD(ctx);
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+        addToWhereUsedCtd(sym,ctd);
+
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
         
         pushScope((Scope)sym);
 	}
@@ -369,6 +403,11 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         ContextTreeData ctd = st.addCTD(ctx);
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+        addToWhereUsedCtd(sym,ctd);
+
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
 	
 	@Override 
@@ -390,6 +429,11 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         ContextTreeData ctd = st.addCTD(ctx);
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+        addToWhereUsedCtd(sym,ctd);
+
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
         
         pushScope((Scope)sym);
 	}
@@ -401,25 +445,28 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 	public void enterExpr(VisualBasic6CompUnitParser.ExprContext ctx) {
 		st.addCTD(ctx);
 		st.getCTDMap().get(ctx).setScope(getCurrentScope());
+
+	    st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
 	
 	public void enterExpression(VisualBasic6CompUnitParser.ExpressionContext ctx) {
 		st.addCTD(ctx);
 		st.getCTDMap().get(ctx).setScope(getCurrentScope());
+	      st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
 	
 	
 	public void enterCondExpression(VisualBasic6CompUnitParser.CondExpressionContext ctx) {
 		st.addCTD(ctx);
 		st.getCTDMap().get(ctx).setScope(getCurrentScope());
+	    st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
 	
 	public void enterIdentifier(VisualBasic6CompUnitParser.IdentifierContext ctx) {
 		st.addCTD(ctx);
-		st.getCTDMap().get(ctx).setScope(getCurrentScope());		
+		st.getCTDMap().get(ctx).setScope(getCurrentScope());	
+	    st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
-
-
 	
 	public void enterGuiAttribute(VisualBasic6CompUnitParser.GuiAttributeContext ctx) {
 		PropertyList guiAttrProp = new PropertyList();
@@ -445,6 +492,11 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         ContextTreeData ctd = st.addCTD(ctx);
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);	
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+	      addToWhereUsedCtd(sym,ctd);
+
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
 	
 	@Override 
@@ -475,17 +527,19 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 //        	symCompUnitProp.addProperty("SYMBOL_TYPE", SymbolType.COMPILATION_UNIT);
         
     	if(fileSimpleName.toUpperCase().endsWith(".FRM")) {
-    		symCompUnitProp.addProperty("SYMBOL_TYPE", SymbolType.MODULE_FRM);} 
+    		symCompUnitProp.addProperty("SYMBOL_TYPE", SymbolType.MODULE_FRM);
+    		symCompUnitProp.addProperty("DATA_TYPE", "VB.FORM");
+    	} 
     	if(fileSimpleName.toUpperCase().endsWith(".BAS")) {
     		symCompUnitProp.addProperty("SYMBOL_TYPE", SymbolType.MODULE_BAS);} 
     	if(fileSimpleName.toUpperCase().endsWith(".CLS")) {
     		symCompUnitProp.addProperty("SYMBOL_TYPE", SymbolType.MODULE_CLS);} 
     	
-    	if(fileSimpleName.toUpperCase().endsWith(".FRM"))
-    		symCompUnitProp.addProperty("DATA_TYPE", "VB.FORM");
+//    	if(fileSimpleName.toUpperCase().endsWith(".FRM"))
+//    		symCompUnitProp.addProperty("DATA_TYPE", "VB.FORM");
+    	
     	symCompUnitProp.addProperty("FILE_PATH", properties.mustProperty("FILE_PATH"));
     	symCompUnitProp.addProperty("MODULE", module.getName());
-
         
         Symbol sym = symbolFactory.getSymbol(symCompUnitProp);
         
@@ -495,7 +549,10 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
       ctd.getProperties().addProperty("OPTION_EXPLICIT", module.isOptionExplicit());
 
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
         ctd.setScope(getCurrentScope());
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 
         moduleScope = (Scope)sym;
         pushScope((Scope)sym);
@@ -513,6 +570,7 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
 	@Override 
 	public void enterType(VisualBasic6CompUnitParser.TypeContext ctx) {
 		st.addCTD(ctx).setScope(getCurrentScope());
+	    st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 	}
 	
 	@Override 
@@ -552,6 +610,11 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         ContextTreeData ctd = st.addCTD(ctx);
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+	      addToWhereUsedCtd(sym,ctd);
+
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
         
         pushScope((Scope)sym);
         
@@ -603,6 +666,11 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         ContextTreeData ctd = st.addCTD(ctx);
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+	      addToWhereUsedCtd(sym,ctd);
+
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
         
         pushScope((Scope)sym);
 	}
@@ -647,6 +715,12 @@ public class VisualBasic6DefSymCompUnit extends VisualBasic6CompUnitParserBaseLi
         ContextTreeData ctd = st.addCTD(ctx);
         ctd.setScope(getCurrentScope());
         ctd.setSymbol(sym);
+        ctd.getProperties().addProperty("DEFINITION_LINE", ctx.start.getLine());
+
+	      addToWhereUsedCtd(sym,ctd);
+
+        
+        st.getCTDMap().get(ctx).getProperties().addProperty("MODULE_NAME",module.getName());
 
         pushScope((Scope)sym);
 	}

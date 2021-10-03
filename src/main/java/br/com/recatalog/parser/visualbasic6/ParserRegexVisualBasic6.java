@@ -54,8 +54,8 @@ public class ParserRegexVisualBasic6 {
 	final String   FORM = "FORM";
 	
 	
-	// (?:.(?!\\s*$))* => qualquer caracter nÃ£o seguido de espaÃ§o e final de linha"\s*$" 
-    // Syntax: Procedure "Sub" nÃ£o retorna valor
+	// (?:.(?!\\s*$))* => qualquer caracter não seguido de espaço e final de linha"\s*$" 
+    // Syntax: Procedure "Sub" não retorna valor
 	final String DEFMETHOD_SUB_REGEX = "(?:(?i)^(?:\\s*PRIVATE\\s*|\\s*PUBLIC\\s*|\\s*GLOBAL\\s*|\\s*STATIC\\s*)*\\s*SUB\\s*(?<subName>\\w+)\\s*\\((?<formalParameters>(?:.(?!\\s*$))*)\\)\\s*$)";
 	final String DEFMETHOD_SUB = "DEFMETHOD_SUB";
 	
@@ -909,6 +909,8 @@ public class ParserRegexVisualBasic6 {
 
 		if(source instanceof URI) open((URI)source);
 		else if(source instanceof File) open((File)source);
+//		else if(source instanceof java.nio.file.Path) open((java.nio.file.Path)source);
+
 		else if(source instanceof String) open((String)source);
 		else try {
 			throw new InvalidParameterException("Must be 'URL' or 'File' ");
@@ -1056,6 +1058,15 @@ public class ParserRegexVisualBasic6 {
 		  }
 	}
 	
+    
+//	private void open(Path path) {
+//		  try {
+//			  br = new BufferedReader(new InputStreamReader(new FileInputStream(path.toString())));
+//		  } catch(Exception e) {
+//			e.printStackTrace();
+//		  }
+//	}
+	
 	private void open(String pathFile) {
 		  try {
 			  open(new File(pathFile));
@@ -1070,22 +1081,5 @@ public class ParserRegexVisualBasic6 {
 		  } catch(Exception e) {
 			e.printStackTrace();
 		  }
-	}
-	
-	public static void main(String[] args) {
-		File f = null;
-		try {
-			f = BicamSystem.toFileUTF8("C:\\workspace\\arcatalog\\vb6\\antlr4\\input\\R1PAB0\\GECOEX01.CLS");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		BufferedReaderforRegex bfr = new BufferedReaderforRegex(f);
-
-		String line = bfr.nextLine();
-		while(line != null) {
-			System.err.println(line);
-			line = bfr.nextLine();
-		}
 	}	
 }

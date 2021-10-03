@@ -62,6 +62,14 @@
 	    <version>5.6.0</version>
 	    <scope>test</scope>
 	</dependency>
+	
+	<!-- https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit -->
+	<dependency>
+	    <groupId>org.eclipse.jgit</groupId>
+	    <artifactId>org.eclipse.jgit</artifactId>
+	    <version>5.2.1.201812262042-r</version>
+	</dependency>
+	
   </dependencies>
   
   <build>
@@ -77,7 +85,7 @@
         </plugin>
       
       <!-- Necessário para rodar exec:java
-      mvn exec:java -DmainClass="org.antlr.v4.gui.TestRig" -Dexec.args="Expr startRule -gui C:\temp\input.txt"
+(mvn) exec:java -DmainClass="org.antlr.v4.gui.TestRig" -Dexec.args="br.com.recatalog.parser.visualbasic6.VisualBasic6CompUnit startRule -tokens C:\workspace\workspace_desenv_java8\visualbasic6\antlr4.vb6\input\R1PAB0\WNGWN005.BAS"
        -->
 	     <plugin>
 	        <groupId>org.codehaus.mojo</groupId>
