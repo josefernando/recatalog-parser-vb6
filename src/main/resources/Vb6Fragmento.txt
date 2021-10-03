@@ -1,0 +1,17 @@
+Public Sub SU_InitializeApplication()
+
+    'EFO - FunÃ§Ãµes expurgÃ¡veis
+
+    SqlConn% = 0
+    If SqlInit() Then 'Inicializa a DBLIB
+        App.OleRequestPendingTimeout = 2147483647
+        DBLIB_VERSION$ = objCamada.getVersao()
+        App.OleRequestPendingTimeout = 5000
+    Else
+        DBLIB_VERSION$ = ""
+    End If
+    If SQLRPCInit(SqlConn%, "prod20.dbnapoio..pr_msg_s00211", 0) = FAIL% Then
+        SqlStatus% = FAIL
+        Fu_Mensagem = FAIL
+        Exit F
+End Sub
